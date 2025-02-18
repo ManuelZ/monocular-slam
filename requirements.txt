@@ -3,5 +3,6 @@ opencv-python
 open3d
 imutils
 spatialmath-python
+machinevision-toolbox-python
 pykitti
 Pillow

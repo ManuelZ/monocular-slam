@@ -36,34 +36,36 @@ class Processor:
         K: np.ndarray,
         dist: np.ndarray | None = None,
         detector_name="orb",
+        target_width:int|None=None,
         **kwargs,
     ):
         self.current = {"frame": None, "kps": None, "des": None}
         self.prev = {"frame": None, "kps": None, "des": None, "pose": None}
         self.detector = FeatureDetector_create(detector_name, **kwargs)
         self.computer = FeatureDetector_create(detector_name)
-        self.resize_ratio = None
         self.K = K  # intrinsic matrix
         self.K_is_resized = False
         self.distortion_coeffs = dist
         self.E = None  # Essential matrix, filled in pose_estimation_2d
         self.inliers = None  # Inliers found through RANSAC or similar
+        self.target_width = target_width
+        self.__resize_ratio = None  # target width / width
 
-    def resize_frame(self, frame, w_target: int):
+    def resize_frame(self, frame):
         """ """
-        h, w = frame.shape[:2]
-        self.resize_ratio = w_target / w
-        h_target = int(h * self.resize_ratio)
-        w_target = int(w_target)
-        new_dim = (w_target, h_target)
+        image_h, image_w = frame.shape[:2]
+        self.__resize_ratio = self.target_width / image_w
+        target_height = int(image_h * self.__resize_ratio)
+        new_dim = (self.target_width, target_height)
+        
         if config.DEBUG:
-            print(f"Resizing from (H,W) {h}x{w} to {h_target}x{w_target}")
+            print(f"Resizing from (H,W) {image_h}x{image_w} to {target_height}x{self.target_width}")
 
         # From the docs:
         # To shrink an image, it will generally look best with INTER_AREA interpolation,
         # to enlarge an image, it will generally look best with INTER_CUBIC (slow) or INTER_LINEAR
         # (faster but still looks OK).
-        interpolation = cv2.INTER_AREA if self.resize_ratio < 1 else cv2.INTER_CUBIC
+        interpolation = cv2.INTER_AREA if self.__resize_ratio < 1 else cv2.INTER_CUBIC
 
         return cv2.resize(frame, new_dim, interpolation=interpolation)
 
@@ -94,14 +96,16 @@ class Processor:
         return kps, des
 
     def _rescale_intrinsic_matrix(self):
+        """ """
+
         if not self.K_is_resized:
-            self.K[0, 0] *= self.resize_ratio
-            self.K[1, 1] *= self.resize_ratio
-            self.K[0, 2] *= self.resize_ratio
-            self.K[1, 2] *= self.resize_ratio
+            self.K[0, 0] *= self.__resize_ratio
+            self.K[1, 1] *= self.__resize_ratio
+            self.K[0, 2] *= self.__resize_ratio
+            self.K[1, 2] *= self.__resize_ratio
             self.K_is_resized = True
 
-    def preprocess_frame(self, frame, resize=False):
+    def preprocess_frame(self, frame):
         """ """
 
         if config.DEBUG:
@@ -110,8 +114,8 @@ class Processor:
         if isinstance(frame, PIL.Image.Image):
             frame = pil_to_np(frame)
 
-        if resize:
-            frame = self.resize_frame(frame, config.W_TARGET)
+        if self.target_width is not None:
+            frame = self.resize_frame(frame)
             self._rescale_intrinsic_matrix()
             self.h, self.w = frame.shape[:2]
 

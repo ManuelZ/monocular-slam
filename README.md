@@ -1,5 +1,7 @@
 # Monocular Visual SLAM (WIP)
 
+[![Demo](https://img.youtube.com/vi/QXuMJuNvdR4/0.jpg)](https://youtu.be/QXuMJuNvdR4)
+
 Monocular visual odometry — the front end of a SLAM system — estimating camera motion and 3D structure from a single camera. Backend components like loop closure and global optimization are not covered here.
 
 Takes single-camera frames from the KITTI odometry benchmark and:
